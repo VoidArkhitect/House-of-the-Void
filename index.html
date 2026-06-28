@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Art Portfolio</title>
+    <style>
+        /* Base Reset & Variables */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        :root {
+            --bg-color: #0a0a0c;
+            --card-bg: rgba(18, 18, 24, 0.75);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent: #ffffff;
+            --accent-hover: #e5e7eb;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Interactive Background Canvas */
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: all;
+        }
+
+        /* UI Shell Layer */
+        .ui-container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            pointer-events: none; /* Let clicks pass through to canvas by default */
+        }
+
+        header {
+            margin-bottom: 4rem;
+            margin-top: 1rem;
+            pointer-events: auto;
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Responsive Art Grid */
+        .art-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2.5rem;
+            margin-bottom: 5rem;
+        }
+
+        /* Product Cards */
+        .art-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+            pointer-events: auto; /* Re-enable pointer events for interactions */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 240px;
+        }
+
+        .art-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        .card-meta h3 {
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-meta p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .card-action {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price {
+            font-weight: 500;
+            font-size: 1.1rem;
+            letter-spacing: 0.05em;
+        }
+
+        .buy-btn {
+            background-color: var(--accent);
+            color: #000000;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 2px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background-color 0.2s ease;
+        }
+
+        .buy-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Checkout Sliding Drawer Overlay */
+        .checkout-drawer {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 100%;
+            max-width: 420px;
+            height: 100vh;
+            background: #111115;
+            border-left: 1px solid var(--border);
+            z-index: 100;
+            padding: 3rem 2rem;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .checkout-drawer.active {
+            right: 0;
+        }
+
+        .drawer-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .drawer-close:hover {
+            color: var(--text-main);
+        }
+
+        .drawer-content h2 {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 2rem;
+            letter-spacing: 0.05em;
+        }
+
+        .item-summary {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .item-summary p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group input {
+            width: 100%;
+            background: #1a1a22;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            border-radius: 2px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .pay-submit-btn {
+            width: 100%;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        /* Background Dim Overlay */
+        .overlay-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .overlay-mask.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Interactive Background Canvas Element -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Site Content Layer -->
+    <div class="ui-container">
+        <header>
+            <h1>Visual Systems</h1>
+            <p>Generative Art Storefront & Interactive Archive</p>
+        </header>
+
+        <main class="art-grid">
+            <!-- Piece 1 -->
+            <div class="art-card">
+                <div class="card-meta">
+                    <h3>System 01: Wave Mechanics</h3>
+                    <p>A digital blueprint exploring generative harmonic curves and algorithmic pattern arrays.</p>
+                </div>
+                <div class="card-action">
+                    <span class="price">$45.00</span>
+                    <button class="buy-btn" onclick="openCheckout('System 01: Wave Mechanics', '$45.00')">Buy Print</button>
+                </div>
+            </div>
+
+            <!-- Piece 2 -->
+            <div class="art-card">
+                <div class="card-meta">
+                    <h3>System 02: Node Networks</h3>
+                    <p>Visual mapping of floating spatial constellations interacting dynamically with observer proximity.</p>
+                </div>
+                <div class="card-action">
+                    <span class="price">$60.00</span>
+                    <button class="buy-btn" onclick="openCheckout('System 02: Node Networks', '$60.00')">Buy Print</button>
+                </div>
+            </div>
+
+            <!-- Piece 3 -->
+            <div class="art-card">
+                <div class="card-meta">
+                    <h3>System 03: Quantum Dust</h3>
+                    <p>High-density structural vector rendering displaying microscopic particulate entropy behaviors.</p>
+                </div>
+                <div class="card-action">
+                    <span class="price">$75.00</span>
+                    <button class="buy-btn" onclick="openCheckout('System 03: Quantum Dust', '$75.00')">Buy Print</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Background Mask for Open Checkout -->
+    <div class="overlay-mask" id="mask" onclick="closeCheckout()"></div>
+
+    <!-- Secure Checkout Drawer Simulation -->
+    <div class="checkout-drawer" id="checkoutDrawer">
+        <button class="drawer-close" onclick="closeCheckout()">&times;</button>
+        <div class="drawer-content">
+            <h2>Secure Checkout</h2>
+            <div class="item-summary">
+                <strong id="checkoutItemName">Product Name</strong>
+                <p id="checkoutItemPrice">$0.00</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="you@example.com" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="card">Card Information</label>
+                <input type="text" id="card" placeholder="0000 0000 0000 0000" autocomplete="off">
+            </div>
+        </div>
+        <button class="pay-submit-btn" onclick="alert('This is a structural checkout demo! Replace this form with a free real Gumroad/Payhip embed script to process live sales.')">Complete Purchase</button>
+    </div>
+
+    <!-- Core Interactive Script Logic -->
+    <script>
+        // --- 1. Interactive HTML5 Canvas Code (Constellation Effect) ---
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let particlesArray = [];
+        const numberOfParticles = 65;
+
+        // Track user mouse position
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 150
+        };
+
+        window.addEventListener('mousemove', function(event) {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+
+        // Handle scaling
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // Particle blueprints
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = (Math.random() - 0.5) * 0.6;
+                this.speedY = (Math.random() - 0.5) * 0.6;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Bounce at edges
+                if (this.x < 0 || this.x > canvas.width) this.speedX = -this.speedX;
+                if (this.y < 0 || this.y > canvas.height) this.speedY = -this.speedY;
+
+                // Mouse interactive repulsion logic
+                let dx = this.x - mouse.x;
+                let dy = this.y - mouse.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < mouse.radius) {
+                    if (mouse.x < this.x && this.x < canvas.width - 10) this.x += 2;
+                    if (mouse.x > this.x && this.x > 10) this.x -= 2;
+                    if (mouse.y < this.y && this.y < canvas.height - 10) this.y += 2;
+                    if (mouse.y > this.y && this.y > 10) this.y -= 2;
+                }
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            for (let i = 0; i < numberOfParticles; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+
+        // Connect nearby nodes with vector lines
+        function connectLines() {
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let dx = particlesArray[a].x - particlesArray[b].x;
+                    let dy = particlesArray[a].y - particlesArray[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 110) {
+                        let opacity = (1 - (distance / 110)) * 0.12;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Animation Loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+            }
+            connectLines();
+            requestAnimationFrame(animate);
+        }
+
+        // Clear mouse tracking if cursor leaves window completely
+        window.addEventListener('mouseout', function() {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Fire up engine
+        resizeCanvas();
+        animate();
+
+
+        // --- 2. Interactive Checkout Drawer UI Logic ---
+        const drawer = document.getElementById('checkoutDrawer');
+        const mask = document.getElementById('mask');
+        const itemNameText = document.getElementById('checkoutItemName');
+        const itemPriceText = document.getElementById('checkoutItemPrice');
+
+        function openCheckout(name, price) {
+            itemNameText.innerText = name;
+            itemPriceText.innerText = price;
+            drawer.classList.add('active');
+            mask.classList.add('active');
+        }
+
+        function closeCheckout() {
+            drawer.classList.remove('active');
+            mask.classList.remove('active');
+        }
+    </script>
+</body>
+</html>
